@@ -1,0 +1,13 @@
+[package]
+name = "poc-containerd"
+version = "0.1.0"
+edition = "2021"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+containerd-client = "0.5.0"
+prost = "0.12.4"
+prost-types = "0.12.3"
+tokio = { version = "1", features = ["full"] }
+tonic = "0.12.1"
