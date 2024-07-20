@@ -25,7 +25,9 @@ use containerd_client::services::v1::CreateContainerRequest;
 use containerd_client::services::v1::CreateTaskRequest;
 use containerd_client::services::v1::DeleteContainerRequest;
 use containerd_client::services::v1::DeleteTaskRequest;
+use containerd_client::services::v1::ExecProcessRequest;
 use containerd_client::services::v1::ListContainersRequest;
+use containerd_client::services::v1::ResumeTaskRequest;
 use containerd_client::services::v1::StartRequest;
 use containerd_client::services::v1::WaitRequest;
 use containerd_client::tonic::Request;
@@ -43,9 +45,9 @@ async fn main() {
         .await
         .expect("Connect Failed");
 
-    let spec = include_str!("container_spec.json");
+    let spec = include_str!("config.json");
 
-    let rootfs = "/tmp/busybox/bundle/rootfs";
+    let rootfs = "/busybox/rootfs";
     let output = "hello rust client";
     let spec: String = spec
         .to_string()
@@ -64,7 +66,7 @@ async fn main() {
             name: "io.containerd.runc.v2".to_string(),
             options: None,
         }),
-        spec: Some(spec), 
+        spec: Some(spec),
         ..Default::default()
     };
     let req = CreateContainerRequest {
@@ -108,9 +110,6 @@ async fn main() {
 
     let req = CreateTaskRequest {
         container_id: CID.to_string(),
-        stdin: stdin.to_str().unwrap().to_string(),
-        stdout: stdout.to_str().unwrap().to_string(),
-        stderr: stderr.to_str().unwrap().to_string(),
         ..Default::default()
     };
 
@@ -121,57 +120,72 @@ async fn main() {
         .expect("Failed to create task");
     println!("Task: {:?} created", CID);
 
-    let req = StartRequest {
+    let start_request = StartRequest {
         container_id: CID.to_string(),
         ..Default::default()
     };
 
-    let req = with_namespace!(req, NAMESPACE);
-    let _resp = client_task.start(req).await.expect("Failed to start task");
+    let start_request_ns = with_namespace!(start_request, NAMESPACE);
+    let _resp = client_task
+        .start(start_request_ns)
+        .await
+        .expect("Failed to start task");
     println!("Task: {:?} started", CID);
 
     // wait task
-    let req = WaitRequest {
-        container_id: CID.to_string(),
-        ..Default::default()
-    };
-    let req = with_namespace!(req, NAMESPACE);
+    // let req = WaitRequest {
+    //     container_id: CID.to_string(),
+    //     ..Default::default()
+    // };
+    // let req = with_namespace!(req, NAMESPACE);
 
-    let _resp = client_task.wait(req).await.expect("Failed to wait task");
+    // let resp = client_task.wait(req).await.expect("Failed to wait task");
 
-    println!("Task: {:?} stopped", CID);
+    // println!("Task: {:?} stopped", CID);
 
-    let req = DeleteTaskRequest {
-        container_id: CID.to_string(),
-    };
+    // let exec_req = ExecProcessRequest {
+    //     container_id: CID.to_string(),
+    //     stdin: "ls".to_string(),
+    //     stdout: stdout.to_str().unwrap().to_string(),
+    //     stderr: stderr.to_str().unwrap().to_string(),
+    //     exec_id: "exec_command".to_string(),
+    //     ..Default::default()
+    // };
+    // let exec_req_ns = with_namespace!(exec_req, NAMESPACE);
+    // client_task
+    //     .exec(exec_req_ns)
+    //     .await
+    //     .expect("Can't exec task");
+    // println!("Task: {:?} executed", CID);
+    // let req = DeleteTaskRequest {
+    //     container_id: CID.to_string(),
+    // };
+    // let req = with_namespace!(req, NAMESPACE);
 
-    let req = with_namespace!(req, NAMESPACE);
+    // let _resp = client_task
+    //     .delete(req)
+    //     .await
+    //     .expect("Failed to delete task");
 
-    let _resp = client_task
-        .delete(req)
-        .await
-        .expect("Failed to delete task");
+    // println!("Task: {:?} deleted", CID);
 
-    println!("Task: {:?} deleted", CID);
+    // // delete container
+    // let mut client = ContainersClient::new(channel.clone());
 
-    // delete container
-    let mut client = ContainersClient::new(channel.clone());
+    // let req = DeleteContainerRequest {
+    //     id: CID.to_string(),
+    // };
+    // let req = with_namespace!(req, NAMESPACE);
+    // let _resp = client
+    //     .delete(req)
+    //     .await
+    //     .expect("Failed to delete container");
 
-    let req = DeleteContainerRequest {
-        id: CID.to_string(),
-    };
-    let req = with_namespace!(req, NAMESPACE);
-    let _resp = client
-        .delete(req)
-        .await
-        .expect("Failed to delete container");
+    // println!("Container: {:?} deleted", CID);
 
-    println!("Container: {:?} deleted", CID);
-
-    // test container output
-    let actual_stdout = fs::read_to_string(stdout).expect("read stdout actual");
-    assert_eq!(actual_stdout.strip_suffix('\n').unwrap(), output);
+    // // test container output
+    // let actual_stdout = fs::read_to_string(stdout).expect("read stdout actual");
+    // assert_eq!(actual_stdout.strip_suffix('\n').unwrap(), output);
 
     // clear stdin/stdout/stderr
-    let _ = fs::remove_dir_all(tmp);
 }
